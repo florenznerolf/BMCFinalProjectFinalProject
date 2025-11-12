@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "883967419787",
+    "project_id": "smarthomedevices-5316a",
+    "storage_bucket": "smarthomedevices-5316a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:883967419787:android:54f764b8a6b1cbdc8fbb8e",
+        "android_client_info": {
+          "package_name": "SmartHome.Fit"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "883967419787-c7k4ihh92k6f939kmhsa8tjmrb3pfc9l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAd3r2LbCB5k5dKFmKkShI_j9Vdn3d7I9M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "883967419787-c7k4ihh92k6f939kmhsa8tjmrb3pfc9l.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:883967419787:android:0c272919fdac5f8c8fbb8e",
+        "android_client_info": {
+          "package_name": "com.example.smarthomedevices_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "883967419787-c7k4ihh92k6f939kmhsa8tjmrb3pfc9l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAd3r2LbCB5k5dKFmKkShI_j9Vdn3d7I9M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "883967419787-c7k4ihh92k6f939kmhsa8tjmrb3pfc9l.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
