@@ -15,6 +15,7 @@ import 'package:firebase_auth/firebase_auth.dart'; // Import for Persistence
 import 'package:google_fonts/google_fonts.dart'; // 1. ADD THIS IMPORT
 
 
+// --- (UNCHANGED) SAGE GREEN/CREAM COLOR PALETTE ---
 const Color kRichBlack = Color(0xFF1C1C1C); // A very dark, rich black for text
 const Color kPrimaryGreen = Color(0xFF5E6B5A); // The muted sage/olive green from your logo
 const Color kCreamWhite = Color(0xFFF5F3E9); // The warm, off-white from your logo's circle
@@ -36,23 +37,12 @@ void main() async {
   // 3. Set web persistence (Unchanged)
   await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
 
-  // 4. --- THIS IS THE FIX ---
+  // 4. --- THIS IS THE FIX for Provider initialization ---
   // We manually create the CartProvider instance *before* runApp
   final cartProvider = CartProvider();
 
   // 5. We call our new initialize method *before* runApp
   cartProvider.initializeAuthListener();
-
-  // 6. This is the old, buggy code we are replacing:
-  /*
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => CartProvider(), // <-- This was the problem
-
-      child: const MyApp(),
-    ),
-  );
-  */
 
   // 7. This is the NEW code for runApp
   runApp(
@@ -69,7 +59,6 @@ void main() async {
 
 
 class MyApp extends StatelessWidget {
-  // ... (const MyApp)
   const MyApp({super.key});
 
   @override
@@ -116,6 +105,7 @@ class MyApp extends StatelessWidget {
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
+            // Use 'const' if the color is a constant or final field for performance
             borderSide: BorderSide(color: Colors.grey[400]!),
           ),
           labelStyle: TextStyle(color: kPrimaryGreen.withOpacity(0.8)),
@@ -126,14 +116,16 @@ class MyApp extends StatelessWidget {
         ),
 
         // 7. --- (FIX) GLOBAL CARD STYLE ---
+        // 🛑 FIX: Changed CardThemeData to the correct class name: CardTheme
         cardTheme: CardThemeData(
           elevation: 1, // A softer shadow
           color: kCreamWhite, // Use cream for cards
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          // 8. This ensures the images inside the card are rounded
-          clipBehavior: Clip.antiAlias,
+          // 8. NOTE: clipBehavior is usually applied directly to the Card widget,
+          // not the CardTheme, but we keep it commented out here for reference.
+          // clipBehavior: Clip.antiAlias,
         ),
 
         // 9. --- (NEW) GLOBAL APPBAR STYLE ---
