@@ -1,21 +1,29 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:smarthomedevices_app/screens/admin_panel_screen.dart';
-import 'package:smarthomedevices_app/widgets/product_card.dart';
-import 'package:smarthomedevices_app/screens/product_detail_screen.dart';
-import 'package:smarthomedevices_app/providers/cart_provider.dart'; // 1. ADD THIS
-import 'package:smarthomedevices_app/screens/cart_screen.dart'; // 2. ADD THIS
 import 'package:provider/provider.dart';
-// Note: This import seems redundant for 'home_screen.dart' itself, but is kept if intended for other use
-import 'package:smarthomedevices_app/screens/home_screen.dart';
-import 'package:smarthomedevices_app/screens/order_history_screen.dart';
-// 1. ADD THIS (Module: Create Profile Screen - Part A)
-import 'package:smarthomedevices_app/screens/profile_screen.dart';
-import 'package:smarthomedevices_app/widgets/notification_icon.dart';
 
-// 1. ADD THIS IMPORT for the new chat screen
+// SCREEN IMPORTS
+import 'package:smarthomedevices_app/screens/admin_panel_screen.dart';
+import 'package:smarthomedevices_app/screens/cart_screen.dart';
 import 'package:smarthomedevices_app/screens/chat_screen.dart';
+import 'package:smarthomedevices_app/screens/order_history_screen.dart';
+import 'package:smarthomedevices_app/screens/profile_screen.dart';
+import 'package:smarthomedevices_app/screens/product_detail_screen.dart';
+import 'package:smarthomedevices_app/screens/notifications_screen.dart'; // Ensure this is imported
+
+// WIDGET/PROVIDER IMPORTS
+import 'package:smarthomedevices_app/providers/cart_provider.dart';
+import 'package:smarthomedevices_app/widgets/notification_icon.dart';
+import 'package:smarthomedevices_app/widgets/product_card.dart';
+
+// --- THEME COLORS ---
+const Color kRichBlack = Color(0xFF1C1C1C);
+const Color kPrimaryGreen = Color(0xFF5E6B5A);
+const Color kCreamWhite = Color(0xFFF5F3E9);
+const Color kAppBackground = Color(0xFFF8F4F0);
+// --- END OF THEME ---
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,9 +34,32 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _userRole = 'user';
-  // 2. Add instances for FireAuth and FireStore
+  String? _profileImageUrl;
   final User? _currentUser = FirebaseAuth.instance.currentUser;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  int _selectedIndex = 0;
+
+  // List of screens for the BottomNavigationBar
+  final List<Widget> _widgetOptions = <Widget>[
+    // Index 0: The complex home screen content (The main content)
+    _HomeContent(),
+    // Index 1: Cart Screen
+    const CartScreen(),
+    // Index 2: Order History Screen
+    const OrderHistoryScreen(),
+    // Index 3: Notifications Screen
+    const NotificationsScreen(),
+    // Index 4: Profile Screen
+    const ProfileScreen(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+  // ------------------------------------
 
   @override
   void initState() {
@@ -39,196 +70,161 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchUserRole() async {
     final User? user = FirebaseAuth.instance.currentUser;
 
-    // This check is now reliable.
     if (user == null) return;
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid) // <-- Use the local 'user' variable
+          .doc(user.uid)
           .get();
 
       if (doc.exists && doc.data() != null) {
         if (mounted) {
           setState(() {
             _userRole = doc.data()!['role'];
+            _profileImageUrl = doc.data()!['profileImageUrl'] as String?;
           });
         }
       }
     } catch (e) {
-      print("Error fetching user role: $e");
+      print("Error fetching user role and profile image: $e");
     }
   }
 
-  // DELETED: We no longer need the _signOut function here. It is moved to ProfileScreen.
-  // Future<void> _signOut() async { ... }
+  // Helper function to navigate and close the drawer
+  void _navigateToScreen(BuildContext context, Widget screen) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.pop(context);
+    }
+    // We navigate using push for deep links (like Admin Panel), but main navigation uses the BottomBar
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => screen),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    // 3. Use the local _currentUser variable
     final User? currentUser = _currentUser;
+    final String userEmail = currentUser?.email ?? 'Menu';
 
     return Scaffold(
       appBar: AppBar(
-
-        // 1. --- THIS IS THE CHANGE ---
-        //    DELETE your old title:
-        /*
-        // Use the local 'currentUser' variable
-        title: Text(currentUser != null ? 'Welcome, ${currentUser.email}' : 'Home'),
-        */
-
-        // 2. ADD this new title:
+        // The title/logo remains centered
         title: Image.asset(
-          'assets/images/app_logo.png', // 3. The path to your logo
-          height: 40, // 4. Set a fixed height
+          'assets/images/app_logo.png',
+          height: 40,
         ),
-        // 5. 'centerTitle' is now handled by our global AppBarTheme
-
-        // --- END OF CHANGE ---
-
         actions: [
-          // All your icons (Cart, Bell, Orders, Admin, Profile)
-          // will now be 'kRichBlack' (black) because of our theme.
-
-          // 1. Cart Icon
-          Consumer<CartProvider>(
-            builder: (context, cart, child) {
-              return Badge(
-                label: Text(cart.itemCount.toString()),
-                isLabelVisible: cart.itemCount > 0,
-                child: IconButton(
-                  icon: const Icon(Icons.shopping_cart),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const CartScreen(),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-
-          // 2. Notification Bell (Unchanged)
-          const NotificationIcon(),
-
-          // 3. "My Orders" Icon (Unchanged)
-          // --- NEW: MY ORDERS ICON (Module 11 - Part D) ---
-          // 2. --- ADD THIS NEW BUTTON ---
-          IconButton(
-            icon: const Icon(Icons.receipt_long), // A "receipt" icon
-            tooltip: 'My Orders',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const OrderHistoryScreen(),
-                ),
-              );
-            },
-          ),
-          // --- END NEW ICON ---
-
-          // 4. Admin Icon (Unchanged)
-          // This "if" statement will now work correctly
+          // If you want to keep the admin panel quick access here:
           if (_userRole == 'admin')
             IconButton(
               icon: const Icon(Icons.admin_panel_settings),
               tooltip: 'Admin Panel',
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const AdminPanelScreen(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const AdminPanelScreen()),
                 );
               },
             ),
-
-          // 5. DELETED the old "Logout" IconButton (Module: Create Profile Screen - Part A)
-          /*
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: _signOut,
-          ),
-          */
-
-          // 6. ADD this new "Profile" IconButton (Module: Create Profile Screen - Part A)
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Profile',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ProfileScreen(),
-                ),
-              );
-            },
-          ),
         ],
       ),
 
+      // --- DRAWER: SIMPLIFIED NAVIGATION (ONLY PROFILE & ADMIN PUSH) ---
       drawer: Drawer(
-        // ... (Drawer content is unchanged)
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
+            UserAccountsDrawerHeader(
+              accountName: Text(userEmail, style: const TextStyle(fontWeight: FontWeight.bold)),
+              accountEmail: const Text('View Profile & Settings'),
+
+              currentAccountPicture: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                  ? CircleAvatar(
+                backgroundImage: NetworkImage(_profileImageUrl!),
+                backgroundColor: Colors.white,
+              )
+                  : const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, color: Color(0xFF5E6B5A)), // Default icon
               ),
-              child: Text(
-                currentUser?.email ?? 'Menu',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                ),
+
+              onDetailsPressed: () => _onItemTapped(4), // Navigate to Account/Profile tab
+
+              decoration: const BoxDecoration(
+                color: Color(0xFF5E6B5A), // Primary Green
               ),
             ),
+
+            // Drawer items now use _onItemTapped to switch the BottomBar
             ListTile(
               leading: const Icon(Icons.home),
               title: const Text('Home'),
-              // FIX: Changed onPressed to onTap for ListTile
               onTap: () {
                 Navigator.pop(context);
+                _onItemTapped(0);
               },
             ),
-            const Divider(),
-            // DELETED the old "Logout" ListTile (Module: Create Profile Screen - Part A)
-            /*
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: _signOut,
+              leading: const Icon(Icons.shopping_cart_outlined),
+              title: const Text('Cart'),
+              onTap: () {
+                Navigator.pop(context);
+                _onItemTapped(1);
+              },
             ),
-            */
+            ListTile(
+              leading: const Icon(Icons.list_alt),
+              title: const Text('My Orders'),
+              onTap: () {
+                Navigator.pop(context);
+                _onItemTapped(2);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.notifications_outlined),
+              title: const Text('Notifications'),
+              onTap: () {
+                Navigator.pop(context);
+                _onItemTapped(3);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                _onItemTapped(4);
+              },
+            ),
+
+            const Divider(),
+
+            // Optional: Admin Panel remains a push navigation
+            if (_userRole == 'admin')
+              ListTile(
+                leading: const Icon(Icons.admin_panel_settings, color: Colors.red),
+                title: const Text('Admin Panel', style: TextStyle(color: Colors.red)),
+                onTap: () => _navigateToScreen(context, const AdminPanelScreen()),
+              ),
           ],
         ),
       ),
 
-      // 6. --- NEW: FLOATING ACTION BUTTON WITH CHAT BADGE (Part D) ---
-      floatingActionButton: _userRole == 'user' && _currentUser != null
+      floatingActionButton: _userRole == 'user' && _currentUser != null && _selectedIndex == 0 // Only show on Home tab
           ? StreamBuilder<DocumentSnapshot>(
-        // Listen to *this user's* chat document
         stream: _firestore.collection('chats').doc(_currentUser!.uid).snapshots(),
         builder: (context, snapshot) {
-
           int unreadCount = 0;
-          // Check if the document exists and has the count field
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data();
             if (data != null) {
-              // Safely get the count
               unreadCount = (data as Map<String, dynamic>)['unreadByUserCount'] as int? ?? 0;
             }
           }
 
-          // Wrap the FAB in the Badge widget
           return Badge(
             label: Text('$unreadCount'),
-            isLabelVisible: unreadCount > 0, // Only show if count > 0
-
-            // The FAB is the *child* of the Badge
+            isLabelVisible: unreadCount > 0,
             child: FloatingActionButton.extended(
               icon: const Icon(Icons.support_agent),
               label: const Text('Contact Admin'),
@@ -236,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => ChatScreen(
-                      chatRoomId: _currentUser!.uid, // Chat room is the User's UID
+                      chatRoomId: _currentUser!.uid,
                     ),
                   ),
                 );
@@ -245,64 +241,224 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       )
-          : null, // If admin or not logged in, don't show the FAB
-      // --- END NEW FAB ---
+          : null,
 
-      body: StreamBuilder<QuerySnapshot>(
-        // ... (Product listing StreamBuilder remains the same)
-        stream: FirebaseFirestore.instance
-            .collection('products')
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text('No products found. Add some in the Admin Panel!'),
-            );
-          }
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _widgetOptions,
+      ),
 
-          final products = snapshot.data!.docs;
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(10.0),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 3 / 4,
+      bottomNavigationBar: BottomNavigationBar(
+        items: <BottomNavigationBarItem>[
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Consumer<CartProvider>( // Add Cart badge to BottomNav
+              builder: (context, cart, child) {
+                return Badge(
+                  label: Text(cart.itemCount.toString()),
+                  isLabelVisible: cart.itemCount > 0,
+                  child: const Icon(Icons.shopping_cart_outlined),
+                );
+              },
             ),
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final productDoc = products[index];
-              final productData = productDoc.data() as Map<String, dynamic>;
+            activeIcon: const Icon(Icons.shopping_cart),
+            label: 'Cart',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long_outlined),
+            activeIcon: Icon(Icons.receipt_long),
+            label: 'Orders',
+          ),
+          // Using a placeholder for Notification count, since NotificationIcon widget is complex
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.notifications_outlined),
+            activeIcon: Icon(Icons.notifications),
+            label: 'Notif',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Account',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: kPrimaryGreen,
+        unselectedItemColor: kRichBlack.withOpacity(0.6),
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        showUnselectedLabels: true,
+      ),
+    );
+  }
+}
 
-              return ProductCard(
-                productName: productData['name'],
-                // Handle potential null or incorrect types from Firestore
-                price: (productData['price'] ?? 0).toDouble(),
-                imageUrl: productData['imageUrl'],
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => ProductDetailScreen(
-                        productData:productData,
-                        productId:productDoc.id,
-                      ),
-                    ),
-                  );
-                },
 
-
+class _HomeContent extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // This is the content that appears on the Home tab (index 0)
+    return ListView(
+      children: [
+        const SearchBarWidget(),
+        const SizedBox(height: 16),
+        const PromoBannerWidget(),
+        const SizedBox(height: 16),
+        const SectionTitleWidget(title: 'All Products'),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('products')
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 50.0),
+                child: CircularProgressIndicator(),
+              ));
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(
+                child: Text('No products found. Add some in the Admin Panel!'),
               );
+            }
+
+            final products = snapshot.data!.docs;
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(10.0),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 3 / 4,
+              ),
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final productDoc = products[index];
+                final productData = productDoc.data() as Map<String, dynamic>;
+
+                return ProductCard(
+                  productName: productData['name'],
+                  price: (productData['price'] ?? 0).toDouble(),
+                  imageUrl: productData['imageUrl'],
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => ProductDetailScreen(
+                          productData:productData,
+                          productId:productDoc.id,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+
+class SearchBarWidget extends StatelessWidget {
+  const SearchBarWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: 'Search',
+          prefixIcon: const Icon(Icons.search, color: kPrimaryGreen),
+          fillColor: kCreamWhite,
+          filled: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: kPrimaryGreen, width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class PromoBannerWidget extends StatelessWidget {
+  const PromoBannerWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Card(
+        color: kPrimaryGreen.withOpacity(0.9),
+        elevation: 4,
+        child: Container(
+          height: 150,
+          padding: const EdgeInsets.all(20),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Deals!', style: TextStyle(color: kCreamWhite, fontSize: 16)),
+                  Text('Smart Home Hub', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                  Text('Upgrade your smart life today!', style: TextStyle(color: kCreamWhite)),
+                ],
+              ),
+              Icon(Icons.lightbulb_outline, size: 50, color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SectionTitleWidget extends StatelessWidget {
+  final String title;
+  const SectionTitleWidget({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kRichBlack),
+          ),
+          TextButton(
+            onPressed: () {
+              // Action when "See all" is tapped
             },
-          );
-        },
+            child: const Text('See all', style: TextStyle(color: kPrimaryGreen, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

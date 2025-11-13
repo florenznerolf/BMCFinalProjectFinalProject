@@ -1,5 +1,3 @@
-// lib/screens/admin_chat_list_screen.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 // Note: Changed import path based on common structure
 import 'package:smarthomedevices_app/screens/chat_screen.dart';

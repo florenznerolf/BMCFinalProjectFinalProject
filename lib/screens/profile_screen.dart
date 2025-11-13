@@ -3,8 +3,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // Added for web checks
 
-// Assuming you have this screen from a previous module
+// --- THEME COLORS (for consistency, keeping existing where appropriate) ---
+const Color kPrimaryGreen = Color(0xFF5E6B5A);
+const Color kCreamWhite = Color(0xFFF5F3E9);
+const Color kRedError = Color(0xFFD32F2F);
+const Color kRichBlack = Color(0xFF1C1C1C); // For text
+// --- END OF THEME ---
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -13,119 +22,406 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final User? _currentUser = FirebaseAuth.instance.currentUser;
-  String _userEmail = 'Loading...';
   String _userRole = 'user';
+  String? _profileImageUrl;
+  final User? _currentUser = FirebaseAuth.instance.currentUser;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
+
+  // STATE VARIABLES FOR LOADING CONTROL
+  bool _isInitialDataLoaded = false;
+  bool _isImageUploading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserData();
+    _fetchUserRoleAndProfile();
   }
 
-  Future<void> _fetchUserData() async {
-    if (_currentUser == null) return;
+  Future<void> _fetchUserRoleAndProfile() async {
+    final User? user = _currentUser;
+    if (user == null) return;
 
     try {
-      // 1. Fetch user data from 'users' collection
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUser!.uid)
-          .get();
+      final doc = await _firestore.collection('users').doc(user.uid).get();
 
       if (doc.exists && doc.data() != null) {
         if (mounted) {
           setState(() {
-            _userEmail = doc.data()!['email'] ?? 'No Email';
             _userRole = doc.data()!['role'] ?? 'user';
+            _profileImageUrl = doc.data()!['profileImageUrl'] as String?;
+            _isInitialDataLoaded = true;
           });
         }
-      } else {
-        // Fallback to Firebase Auth email if document is missing
-        if (mounted) {
-          setState(() {
-            _userEmail = _currentUser!.email ?? 'Guest User';
-          });
-        }
+      } else if (mounted) {
+        setState(() {
+          _isInitialDataLoaded = true;
+        });
       }
     } catch (e) {
       print("Error fetching user data: $e");
       if (mounted) {
         setState(() {
-          _userEmail = _currentUser!.email ?? 'Error fetching data';
+          _isInitialDataLoaded = true;
         });
       }
     }
   }
 
-  // 1. --- THIS IS THE LOGOUT BUTTON FIX (Part A) ---
-  Future<void> _signOut() async {
-    // 2. Get the Navigator *before* the async call
-    final navigator = Navigator.of(context);
+  // UPDATED: Function to pick and upload image (Web/Mobile compatible with better state handling)
+  Future<void> _pickAndUploadImage() async {
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
 
-    // 3. Perform the actual sign out
-    await _auth.signOut();
+    if (pickedFile != null) {
+      // 1. START LOADING STATE
+      setState(() {
+        _isImageUploading = true;
+        _profileImageUrl = null; // Clear image to show spinner
+      });
 
-    // 4. --- THIS IS THE FIX ---
-    // After signing out, pop all screens until we are back at the AuthWrapper.
-    // This prevents the "stuck screen" bug.
-    navigator.popUntil((route) => route.isFirst);
+      bool uploadSuccess = false;
+
+      try {
+        String fileName = 'profile_pictures/${_currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        // Read the file as bytes (universal method for web/mobile)
+        final data = await pickedFile.readAsBytes();
+
+        // Upload to Firebase Storage using putData
+        UploadTask uploadTask = FirebaseStorage.instance.ref().child(fileName).putData(data);
+
+        TaskSnapshot snapshot = await uploadTask;
+        String downloadUrl = await snapshot.ref.getDownloadURL();
+
+        // Update Firestore user document with the new URL
+        await _firestore.collection('users').doc(_currentUser!.uid).update({
+          'profileImageUrl': downloadUrl,
+        });
+
+        // 2. SUCCESS: Update local state and show success
+        if (mounted) {
+          setState(() {
+            _profileImageUrl = downloadUrl;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile picture updated!', style: TextStyle(color: Colors.white)),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        uploadSuccess = true;
+
+      } on FirebaseException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error uploading picture: ${e.message}', style: const TextStyle(color: Colors.white)),
+              backgroundColor: kRedError,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('An unexpected error occurred: ${e.toString()}', style: const TextStyle(color: Colors.white)),
+              backgroundColor: kRedError,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } finally {
+        // 3. END LOADING STATE AND REFRESH IF FAILED
+        if (mounted) {
+          setState(() {
+            _isImageUploading = false;
+          });
+          // If the upload failed to update the image URL, re-fetch the old one to stop the spinner.
+          if (!uploadSuccess) {
+            _fetchUserRoleAndProfile();
+          }
+        }
+      }
+    }
   }
-  // --- END OF FIX ---
+
+  Future<void> _logOut() async {
+    await FirebaseAuth.instance.signOut();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final String userEmail = _currentUser?.email ?? 'N/A';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Profile'),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        foregroundColor: kRichBlack,
+        elevation: 0.5,
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Center(
-                child: Icon(
-                  Icons.person_pin,
-                  size: 100,
-                  color: Colors.deepPurple,
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // --- Profile Picture and Upload Button ---
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 60,
+                  backgroundColor: kPrimaryGreen.withOpacity(0.1),
+                  backgroundImage: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
+                      ? NetworkImage(_profileImageUrl!)
+                      : null,
+                  child: (_isImageUploading || !_isInitialDataLoaded) // Check both loading states
+                      ? const CircularProgressIndicator(color: kPrimaryGreen) // Show spinner
+                      : const Icon(Icons.person, size: 60, color: kPrimaryGreen), // Default icon
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: _isImageUploading ? null : _pickAndUploadImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _isImageUploading ? Colors.grey : kPrimaryGreen, // Disable button visually while loading
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+
+            // --- Email and Role Card (Styled neutrally) ---
+            Card(
+              elevation: 0,
+              margin: const EdgeInsets.symmetric(horizontal: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Email:', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                    const SizedBox(height: 4),
+                    Text(userEmail, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: kRichBlack)),
+                    const Divider(height: 30, color: Colors.grey),
+                    const Text('Role:', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                    const SizedBox(height: 4),
+                    Text(_userRole.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: _userRole == 'admin' ? kRedError : kRichBlack,
+                        )),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
+            ),
+            const SizedBox(height: 30),
 
-              const Text('Email:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              Text(_userEmail, style: const TextStyle(fontSize: 18)),
-              const Divider(height: 30),
+            // --- Change Password Form (Fixed to Red Button) ---
+            const ChangePasswordForm(),
 
-              const Text('Role:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              Text(_userRole.toUpperCase(), style: const TextStyle(fontSize: 18, color: Colors.blue)),
-              const Divider(height: 30),
+            const SizedBox(height: 40),
 
-              // ... (You can add more user info fields here)
+            // --- Log Out Button ---
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _logOut,
+                icon: const Icon(Icons.logout, color: Colors.white),
+                label: const Text('Log Out', style: TextStyle(fontSize: 18, color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kRedError,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-              const SizedBox(height: 40),
+class ChangePasswordForm extends StatefulWidget {
+  const ChangePasswordForm({super.key});
 
-              // The Logout Button
+  @override
+  State<ChangePasswordForm> createState() => _ChangePasswordFormState();
+}
+
+class _ChangePasswordFormState extends State<ChangePasswordForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _changePassword() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await FirebaseAuth.instance.currentUser!.updatePassword(_newPasswordController.text);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Password changed successfully!', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+      _formKey.currentState!.reset();
+
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to change password.';
+      if (e.code == 'requires-recent-login') {
+        message = 'Re-login required for security. Please log out, log back in, then try again.';
+      } else {
+        message = e.message ?? message;
+      }
+
+      setState(() {
+        _errorMessage = message;
+      });
+
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An unknown error occurred.';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Change Password',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kRichBlack),
+        ),
+        const Divider(color: Colors.grey),
+
+        if (_errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10.0),
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(color: kRedError, fontWeight: FontWeight.bold),
+            ),
+          ),
+
+        Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _newPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'New Password',
+                  hintText: 'Min 6 characters',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  fillColor: Colors.white,
+                  filled: true,
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a new password.';
+                  }
+                  if (value.length < 6) {
+                    return 'Password must be at least 6 characters.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 15),
+
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Confirm New Password',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_reset),
+                  fillColor: Colors.white,
+                  filled: true,
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please confirm your new password.';
+                  }
+                  if (value != _newPasswordController.text) {
+                    return 'Passwords do not match.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 25),
+
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _signOut,
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Log Out'),
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _changePassword,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
+                    backgroundColor: kRedError,
                     padding: const EdgeInsets.symmetric(vertical: 15),
-                    textStyle: const TextStyle(fontSize: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                      : const Text(
+                    'Change Password',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }

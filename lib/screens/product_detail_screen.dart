@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:smarthomedevices_app/providers/cart_provider.dart'; // 1. ADD THIS
+import 'package:smarthomedevices_app/providers/cart_provider.dart';
 import 'package:provider/provider.dart';
+
+import 'package:smarthomedevices_app/screens/payment_screen.dart';
 
 
 // 1. Change StatelessWidget to StatefulWidget
@@ -46,6 +48,54 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
+  void _buyNow(BuildContext context) {
+    // 1. Create a temporary list of items for immediate checkout
+    final List<Map<String, dynamic>> itemsToBuy = [
+      {
+        'productId': widget.productId,
+        'name': widget.productData['name'],
+        'price': widget.productData['price'],
+        'imageUrl': widget.productData['imageUrl'],
+        'quantity': _quantity, // Use the current selected quantity
+      }
+    ];
+
+    // 2. Calculate the temporary total price
+    final double tempTotalPrice = widget.productData['price'] * _quantity;
+
+    // 3. Navigate directly to the Payment/Checkout screen.
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PaymentScreen(
+          // Pass the necessary data to the checkout flow
+          itemsToCheckout: itemsToBuy,
+          totalAmount: tempTotalPrice,
+        ),
+      ),
+    );
+  }
+
+  void _addToCart(BuildContext context) {
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    final String name = widget.productData['name'];
+    final double price = widget.productData['price'];
+
+    cart.addItem(
+      widget.productId,
+      name,
+      price,
+      _quantity, // Pass the selected quantity
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added $_quantity x $name to cart!'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
 
@@ -55,10 +105,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final String imageUrl = widget.productData['imageUrl'];
     final double price = widget.productData['price'];
 
-    // 2. Get the CartProvider (same as before)
-    final cart = Provider.of<CartProvider>(context, listen: false);
-
-    // 2. The main screen widget
+    // The main screen widget
     return Scaffold(
       appBar: AppBar(
         // 3. Show the product name in the top bar
@@ -115,7 +162,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
-                      color: Colors.deepPurple,
+                      color: Theme.of(context).primaryColor, // Using primary color
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -138,28 +185,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                   ),
 
-                  // 4. --- ADD THIS NEW SECTION ---
-                  //    (before the "Add to Cart" button)
+                  // --- QUANTITY SELECTOR ---
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // 5. DECREMENT BUTTON
+                      // DECREMENT BUTTON
                       IconButton.filledTonal(
                         icon: const Icon(Icons.remove),
                         onPressed: _decrementQuantity,
                       ),
 
-                      // 6. QUANTITY DISPLAY
+                      // QUANTITY DISPLAY
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Text(
-                          '$_quantity', // 7. Display our state variable
+                          '$_quantity',
                           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                       ),
 
-                      // 8. INCREMENT BUTTON
+                      // INCREMENT BUTTON
                       IconButton.filled(
                         icon: const Icon(Icons.add),
                         onPressed: _incrementQuantity,
@@ -167,35 +213,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  // --- END OF NEW SECTION ---
-
-
-                  // 9. Find your "Add to Cart" button
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // 10. --- THIS IS THE UPDATED LOGIC ---
-                      //    We now pass the _quantity from our state
-                      cart.addItem(
-                        widget.productId,
-                        name,
-                        price,
-                        _quantity, // 11. Pass the selected quantity
-                      );
-
-                      // 12. Update the SnackBar message
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Added $_quantity x $name to cart!'),
-                          duration: const Duration(seconds: 2),
+                  Row(
+                    children: [
+                      // 1. BUY NOW Button
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _buyNow(context),
+                          // Use the primary color for 'Buy Now'
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: const TextStyle(fontSize: 18),
+                          ),
+                          child: const Text('Buy Now'),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.shopping_cart_outlined),
-                    label: const Text('Add to Cart'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(fontSize: 18),
-                    ),
+                      ),
+
+                      const SizedBox(width: 10),
+
+                      // 2. ADD TO CART Button
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _addToCart(context),
+                          icon: const Icon(Icons.shopping_cart_outlined),
+                          label: const Text('Add to Cart'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Theme.of(context).primaryColor,
+                            side: BorderSide(color: Theme.of(context).primaryColor),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: const TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

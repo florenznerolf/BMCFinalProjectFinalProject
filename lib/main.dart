@@ -15,12 +15,10 @@ import 'package:firebase_auth/firebase_auth.dart'; // Import for Persistence
 import 'package:google_fonts/google_fonts.dart'; // 1. ADD THIS IMPORT
 
 
-// --- (UNCHANGED) SAGE GREEN/CREAM COLOR PALETTE ---
-const Color kRichBlack = Color(0xFF1C1C1C); // A very dark, rich black for text
-const Color kPrimaryGreen = Color(0xFF5E6B5A); // The muted sage/olive green from your logo
-const Color kCreamWhite = Color(0xFFF5F3E9); // The warm, off-white from your logo's circle
-const Color kAppBackground = Color(0xFFF8F4F0); // A clean, warm off-white for the app background
-// --- END OF COLOR PALETTE ---
+const Color kRichBlack = Color(0xFF1C1C1C);
+const Color kPrimaryGreen = Color(0xFF5E6B5A);
+const Color kCreamWhite = Color(0xFFF5F3E9);
+const Color kAppBackground = Color(0xFFF8F4F0);
 
 
 void main() async {
@@ -65,9 +63,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Smart Home Devices',
+      title: 'SmartDev',
 
-      // 1. --- (UPDATED) THIS IS THE NEW, COMPLETE THEME ---
       theme: ThemeData(
         // 2. Set the main color scheme
         colorScheme: ColorScheme.fromSeed(
@@ -83,7 +80,6 @@ class MyApp extends StatelessWidget {
         // 3. Set the background color for all screens
         scaffoldBackgroundColor: kAppBackground,
 
-        // 4. --- (FIX) APPLY THE GOOGLE FONT ---
         // This applies "Lato" to all text in the app
         textTheme: GoogleFonts.latoTextTheme(
           Theme.of(context).textTheme,
@@ -115,20 +111,15 @@ class MyApp extends StatelessWidget {
           ),
         ),
 
-        // 7. --- (FIX) GLOBAL CARD STYLE ---
-        // 🛑 FIX: Changed CardThemeData to the correct class name: CardTheme
         cardTheme: CardThemeData(
           elevation: 1, // A softer shadow
           color: kCreamWhite, // Use cream for cards
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          // 8. NOTE: clipBehavior is usually applied directly to the Card widget,
-          // not the CardTheme, but we keep it commented out here for reference.
-          // clipBehavior: Clip.antiAlias,
         ),
 
-        // 9. --- (NEW) GLOBAL APPBAR STYLE ---
+
         appBarTheme: AppBarTheme(
           backgroundColor: kCreamWhite, // Clean cream AppBar
           foregroundColor: kRichBlack, // Black icons and text
@@ -136,7 +127,6 @@ class MyApp extends StatelessWidget {
           centerTitle: true,
         ),
       ),
-      // --- END OF NEW THEME ---
 
       // 1. Change this line
       home: const AuthWrapper(), // 2. Set LoginScreen as the home

@@ -1,5 +1,3 @@
-// lib/widgets/notification_icon.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smarthomedevices_app/screens/notifications_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';

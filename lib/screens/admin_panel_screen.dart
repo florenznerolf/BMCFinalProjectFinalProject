@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// FIX: Changed to 'admin_orders_screen.dart' to match your actual file name
 import 'package:smarthomedevices_app/screens/admin_order_screen.dart';
 
 // 1. ADD THIS IMPORT for the new chat list screen
 import 'package:smarthomedevices_app/screens/admin_chat_list_screen.dart';
 
-import 'admin_order_screen.dart';
 
 class AdminPanelScreen extends StatefulWidget {
   const AdminPanelScreen({super.key});
@@ -41,6 +39,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     super.dispose();
   }
 
+  // FIX: Contains 'if (mounted)' checks to prevent async gap warnings
   Future<void> _uploadProduct() async {
     // 1. First, check if all form fields are valid
     if (!_formKey.currentState!.validate()) {
@@ -126,7 +125,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                   // 4. Navigate to our new screen
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      // FIX: Changed to 'AdminOrdersScreen' to match the imported class
+                      // FIX: The class name is correct here
                       builder: (context) => const AdminOrderScreen(),
                     ),
                   );

@@ -1,5 +1,3 @@
-// lib/models/cart_item.dart
-
 class CartItem {
   final String id;        // The unique Firestore product ID
   final String name;      // Product name

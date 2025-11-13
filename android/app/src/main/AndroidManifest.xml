@@ -1,11 +1,19 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.smarthomedevices_app">
 
     <uses-permission android:name="android.permission.INTERNET" />
-
+    
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/> 
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
     <application
         android:label="smarthomedevices_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"> 
         <activity
             android:name=".MainActivity"
             android:exported="true"

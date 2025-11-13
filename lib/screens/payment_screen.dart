@@ -1,27 +1,21 @@
-// lib/screens/payment_screen.dart
-
 import 'package:smarthomedevices_app/providers/cart_provider.dart';
 import 'package:smarthomedevices_app/screens/order_success_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-// 1. An enum to represent our different payment methods
-//    This is cleaner than using strings like "gcash"
+
 enum PaymentMethod { card, gcash, bank }
 
 class PaymentScreen extends StatefulWidget {
-  // 2. We need to know the total amount to be paid
   final double totalAmount;
 
-  // 3. The constructor will require this amount
-  const PaymentScreen({super.key, required this.totalAmount});
+  const PaymentScreen({super.key, required this.totalAmount, required List<Map<String, dynamic>> itemsToCheckout});
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  // 4. State variables to track selection and loading
   PaymentMethod _selectedMethod = PaymentMethod.card; // Default to card
   bool _isLoading = false;
 

@@ -1,11 +1,7 @@
-// lib/screens/cart_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:smarthomedevices_app/providers/cart_provider.dart';
-import 'package:smarthomedevices_app/screens/payment_screen.dart'; // 1. Import PaymentScreen
-// We no longer need OrderSuccessScreen here, it will be called from PaymentScreen
-// import 'package:smarthomedevices_app/screens/order_success_screen.dart';
+import 'package:smarthomedevices_app/screens/payment_screen.dart';
 
 // 2. It's a StatelessWidget again!
 class CartScreen extends StatelessWidget {
@@ -145,7 +141,7 @@ class CartScreen extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (context) => PaymentScreen(
                       // 9. Pass the final VAT-inclusive total
-                      totalAmount: cart.totalPriceWithVat,
+                      totalAmount: cart.totalPriceWithVat, itemsToCheckout: [],
                     ),
                   ),
                 );
