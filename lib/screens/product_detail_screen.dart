@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:smarthomedevices_app/providers/cart_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:smarthomedevices_app/providers/cart_provider.dart';
 
-import 'package:smarthomedevices_app/screens/payment_screen.dart';
+// --- THEME COLORS (Match the HomeScreen) ---
+const Color kRichBlack = Color(0xFF1C1C1C);
+const Color kPrimaryGreen = Color(0xFF5E6B5A);
+const Color kCreamWhite = Color(0xFFF5F3E9);
+const Color kAppBackground = Color(0xFFF8F4F0);
+// --- END OF THEME ---
 
-
-// 1. Change StatelessWidget to StatefulWidget
-class ProductDetailScreen extends StatefulWidget {
-
-  // 2. We will pass in the product's data (the map)
+class ProductDetailScreen extends StatelessWidget {
   final Map<String, dynamic> productData;
-  // 3. We'll also pass the unique product ID (critical for 'Add to Cart' later)
   final String productId;
 
-  // 4. The constructor takes both parameters
   const ProductDetailScreen({
     super.key,
     required this.productData,
@@ -21,237 +20,166 @@ class ProductDetailScreen extends StatefulWidget {
   });
 
   @override
-  // 2. Create the State class
-  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
-}
-
-// 3. Rename the main class to _ProductDetailScreenState and extend State
-class _ProductDetailScreenState extends State<ProductDetailScreen> {
-
-  // 4. ADD OUR NEW STATE VARIABLE FOR QUANTITY
-  int _quantity = 1;
-
-  // 1. ADD THIS FUNCTION
-  void _incrementQuantity() {
-    setState(() {
-      _quantity++;
-    });
-  }
-
-  // 2. ADD THIS FUNCTION
-  void _decrementQuantity() {
-    // We don't want to go below 1
-    if (_quantity > 1) {
-      setState(() {
-        _quantity--;
-      });
-    }
-  }
-
-  void _buyNow(BuildContext context) {
-    // 1. Create a temporary list of items for immediate checkout
-    final List<Map<String, dynamic>> itemsToBuy = [
-      {
-        'productId': widget.productId,
-        'name': widget.productData['name'],
-        'price': widget.productData['price'],
-        'imageUrl': widget.productData['imageUrl'],
-        'quantity': _quantity, // Use the current selected quantity
-      }
-    ];
-
-    // 2. Calculate the temporary total price
-    final double tempTotalPrice = widget.productData['price'] * _quantity;
-
-    // 3. Navigate directly to the Payment/Checkout screen.
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => PaymentScreen(
-          // Pass the necessary data to the checkout flow
-          itemsToCheckout: itemsToBuy,
-          totalAmount: tempTotalPrice,
-        ),
-      ),
-    );
-  }
-
-  void _addToCart(BuildContext context) {
-    final cart = Provider.of<CartProvider>(context, listen: false);
-    final String name = widget.productData['name'];
-    final double price = widget.productData['price'];
-
-    cart.addItem(
-      widget.productId,
-      name,
-      price,
-      _quantity, // Pass the selected quantity
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Added $_quantity x $name to cart!'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-
-  @override
   Widget build(BuildContext context) {
+    // Safely extract product details, providing fallback values if data is missing
+    final String name = productData['name'] ?? 'Unknown Product';
+    final double price = (productData['price'] as num?)?.toDouble() ?? 0.0;
+    final String imageUrl = productData['imageUrl'] ?? 'https://placehold.co/600x400/CCCCCC/1C1C1C?text=No+Image';
+    final String description = productData['description'] ?? 'No description available for this product.';
+    final int stock = productData['stock'] ?? 0;
+    
+    // Determine availability and cart button text
+    final bool isAvailable = stock > 0;
+    final String buttonText = isAvailable ? 'Add to Cart' : 'Out of Stock';
 
-    // 1. We now access productData using 'widget.'
-    final String name = widget.productData['name'];
-    final String description = widget.productData['description'];
-    final String imageUrl = widget.productData['imageUrl'];
-    final double price = widget.productData['price'];
-
-    // The main screen widget
     return Scaffold(
+      backgroundColor: kAppBackground,
       appBar: AppBar(
-        // 3. Show the product name in the top bar
         title: Text(name),
+        backgroundColor: kPrimaryGreen,
+        foregroundColor: kCreamWhite,
       ),
-      // 4. This allows scrolling if the description is very long
+      
+      // Use SingleChildScrollView to prevent overflow errors if content is long
       body: SingleChildScrollView(
         child: Column(
-          // 5. Make children fill the width
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            // 6. The large product image
-            Image.network(
-              imageUrl,
-              height: 300, // Give it a fixed height
-              fit: BoxFit.cover, // Make it fill the space
-              // 7. Add the same loading/error builders as the card
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const SizedBox(
-                  height: 300,
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return const SizedBox(
-                  height: 300,
-                  child: Center(child: Icon(Icons.broken_image, size: 100)),
-                );
-              },
+            // --- 1. Product Image ---
+            Hero(
+              tag: productId, // Required for smooth navigation transition
+              child: Image.network(
+                imageUrl,
+                height: 300,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 300,
+                    width: double.infinity,
+                    color: Colors.grey.shade300,
+                    child: const Center(
+                      child: Icon(Icons.broken_image, size: 50, color: kRichBlack),
+                    ),
+                  );
+                },
+              ),
             ),
-
-            // 8. A Padding widget to contain all the text
+            
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
-                  // 9. Product Name (large font)
+                  // --- 2. Name and Price ---
                   Text(
                     name,
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
+                      color: kRichBlack,
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // 10. Price (large font, different color)
                   Text(
-                    '₱${price.toStringAsFixed(2)}',
-                    style: TextStyle(
+                    '\$${price.toStringAsFixed(2)}',
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).primaryColor, // Using primary color
+                      color: kPrimaryGreen,
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // 11. A horizontal dividing line
-                  const Divider(thickness: 1),
-                  const SizedBox(height: 16),
-
-                  // 12. The full description
-                  Text(
-                    'About this item',
-                    style: Theme.of(context).textTheme.titleLarge,
+                  // --- 3. Stock Status ---
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isAvailable ? Colors.green.shade100 : Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      isAvailable ? 'In Stock ($stock)' : 'Out of Stock',
+                      style: TextStyle(
+                        color: isAvailable ? Colors.green.shade800 : Colors.red.shade800,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 24),
+
+                  // --- 4. Description ---
+                  const Text(
+                    'Description',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: kRichBlack,
+                    ),
+                  ),
+                  const Divider(height: 10),
                   Text(
                     description,
                     style: const TextStyle(
                       fontSize: 16,
-                      height: 1.5, // Adds line spacing for readability
+                      color: kRichBlack,
+                      height: 1.5,
                     ),
-                  ),
-
-                  // --- QUANTITY SELECTOR ---
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // DECREMENT BUTTON
-                      IconButton.filledTonal(
-                        icon: const Icon(Icons.remove),
-                        onPressed: _decrementQuantity,
-                      ),
-
-                      // QUANTITY DISPLAY
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Text(
-                          '$_quantity',
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-
-                      // INCREMENT BUTTON
-                      IconButton.filled(
-                        icon: const Icon(Icons.add),
-                        onPressed: _incrementQuantity,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      // 1. BUY NOW Button
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _buyNow(context),
-                          // Use the primary color for 'Buy Now'
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            textStyle: const TextStyle(fontSize: 18),
-                          ),
-                          child: const Text('Buy Now'),
-                        ),
-                      ),
-
-                      const SizedBox(width: 10),
-
-                      // 2. ADD TO CART Button
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _addToCart(context),
-                          icon: const Icon(Icons.shopping_cart_outlined),
-                          label: const Text('Add to Cart'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Theme.of(context).primaryColor,
-                            side: BorderSide(color: Theme.of(context).primaryColor),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            textStyle: const TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+      
+      // --- 5. Bottom Action Bar (Add to Cart) ---
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: kCreamWhite,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              spreadRadius: 2,
+              blurRadius: 5,
+              offset: const Offset(0, -3),
+            ),
+          ],
+        ),
+        child: SafeArea( // Ensures buttons don't overlap home indicator
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.shopping_cart_outlined),
+            label: Text(buttonText),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimaryGreen, // Green button background
+              foregroundColor: kCreamWhite,    // White text/icon
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            onPressed: isAvailable
+                ? () {
+                    // Access the CartProvider and add the item
+                    Provider.of<CartProvider>(context, listen: false).addItem(
+                      productId,
+                      name,
+                      price,
+                      imageUrl,
+                    );
+
+                    // Show confirmation message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('$name added to cart!'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                : null, // Disable button if not available
+          ),
         ),
       ),
     );
